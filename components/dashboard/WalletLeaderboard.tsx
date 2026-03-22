@@ -9,7 +9,20 @@ interface WalletLeaderboardProps {
   loading?: boolean;
 }
 
-const HEADERS = ["", "#", "Wallet", "Win Rate", "Bets", "PnL", "Bot Score", "Active", "Streak", "Last Active", ""];
+// visibility: "" = always, "md" = hidden on mobile, "lg" = hidden below lg
+const HEADERS: { label: string; hide?: string }[] = [
+  { label: "" },
+  { label: "#" },
+  { label: "Wallet" },
+  { label: "Win Rate" },
+  { label: "Bets", hide: "md" },
+  { label: "PnL" },
+  { label: "Bot Score", hide: "md" },
+  { label: "Active", hide: "lg" },
+  { label: "Streak", hide: "lg" },
+  { label: "Last Active", hide: "lg" },
+  { label: "" },
+];
 
 export function WalletLeaderboard({ wallets, loading }: WalletLeaderboardProps) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -77,8 +90,12 @@ export function WalletLeaderboard({ wallets, loading }: WalletLeaderboardProps) 
             <thead>
               <tr className="border-b" style={{ borderColor: "#1e2533" }}>
                 {HEADERS.map((h, i) => (
-                  <th key={i} className="px-4 py-3 text-xs font-mono uppercase tracking-wider" style={{ color: "#475569" }}>
-                    {h}
+                  <th
+                    key={i}
+                    className={`px-4 py-3 text-xs font-mono uppercase tracking-wider ${h.hide === "md" ? "hidden md:table-cell" : h.hide === "lg" ? "hidden lg:table-cell" : ""}`}
+                    style={{ color: "#475569" }}
+                  >
+                    {h.label}
                   </th>
                 ))}
               </tr>

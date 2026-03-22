@@ -143,7 +143,7 @@ export default function SignalsPage() {
 
           {/* ROI Simulator */}
           <div className="rounded-xl border p-5" style={{ borderColor: "rgba(0,230,160,0.2)", backgroundColor: "rgba(0,230,160,0.03)" }}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span style={{ color: "#00e6a0" }}>📈</span>
@@ -385,7 +385,7 @@ export default function SignalsPage() {
                     </div>
 
                     {/* Place bet CTA */}
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: isStrong ? "rgba(255,71,87,0.12)" : "#1e2533" }}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-3 pt-3 border-t" style={{ borderColor: isStrong ? "rgba(255,71,87,0.12)" : "#1e2533" }}>
                       <span className="text-xs font-mono" style={{ color: "#475569" }}>
                         {signal.walletCount}/{signal.totalWallets} sharp wallets agree · formed {timeAgo(signal.formedAt)}
                       </span>
@@ -393,7 +393,7 @@ export default function SignalsPage() {
                         href={signal.polymarketUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-mono font-bold transition-opacity hover:opacity-80"
+                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-mono font-bold transition-opacity hover:opacity-80"
                         style={{
                           backgroundColor: signal.outcome === "YES" ? "#00e6a0" : "#ff4757",
                           color: "#000",

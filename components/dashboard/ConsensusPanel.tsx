@@ -192,7 +192,7 @@ function SignalCard({
         </div>
 
         {/* Place bet CTA */}
-        <div className="mt-2 pt-2 border-t flex items-center justify-between" style={{ borderColor: isStrong ? "rgba(255,71,87,0.12)" : "#1e2533" }}>
+        <div className="mt-2 pt-2 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2" style={{ borderColor: isStrong ? "rgba(255,71,87,0.12)" : "#1e2533" }}>
           <span className="text-xs font-mono" style={{ color: "#475569" }}>
             Sharp consensus: {Math.round(signal.strength * 100)}% of top wallets
           </span>

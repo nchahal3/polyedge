@@ -96,7 +96,7 @@ export function WalletRow({ wallet, rank, selected, onSelect, compareDisabled }:
         </td>
 
         {/* Resolved Bets */}
-        <td className="px-4 py-3 font-mono text-sm" style={{ color: "#94a3b8" }}>
+        <td className="hidden md:table-cell px-4 py-3 font-mono text-sm" style={{ color: "#94a3b8" }}>
           {wallet.resolvedBets}
         </td>
 
@@ -109,7 +109,7 @@ export function WalletRow({ wallet, rank, selected, onSelect, compareDisabled }:
         </td>
 
         {/* Bot Score */}
-        <td className="px-4 py-3">
+        <td className="hidden md:table-cell px-4 py-3">
           <div className="flex items-center gap-2">
             <BotScoreBadge score={wallet.botScore} />
             <span className="text-xs font-mono" style={{ color: "#475569" }}>
@@ -119,12 +119,12 @@ export function WalletRow({ wallet, rank, selected, onSelect, compareDisabled }:
         </td>
 
         {/* Active Bets */}
-        <td className="px-4 py-3 font-mono text-sm" style={{ color: "#4ecdc4" }}>
+        <td className="hidden lg:table-cell px-4 py-3 font-mono text-sm" style={{ color: "#4ecdc4" }}>
           {wallet.activeBets}
         </td>
 
         {/* Win Streak */}
-        <td className="px-4 py-3">
+        <td className="hidden lg:table-cell px-4 py-3">
           {wallet.winStreak > 0 && (
             <span className="font-mono text-sm" style={{ color: "#ffc542" }}>
               🔥 {wallet.winStreak}
@@ -133,7 +133,7 @@ export function WalletRow({ wallet, rank, selected, onSelect, compareDisabled }:
         </td>
 
         {/* Last Active */}
-        <td className="px-4 py-3 text-xs font-mono" style={{ color: "#475569" }}>
+        <td className="hidden lg:table-cell px-4 py-3 text-xs font-mono" style={{ color: "#475569" }}>
           {timeAgo(wallet.lastActive)}
         </td>
 
