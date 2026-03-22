@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String?    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  watchlists    Watchlist[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+model Wallet {
+  id            String          @id @default(cuid())
+  address       String          @unique
+  alias         String?
+  verified      Boolean         @default(false)
+  botScore      Float           @default(0)
+  winRate       Float           @default(0)
+  totalBets     Int             @default(0)
+  resolvedBets  Int             @default(0)
+  pnl           Float           @default(0)
+  totalVolume   Float           @default(0)
+  activeBets    Int             @default(0)
+  winStreak     Int             @default(0)
+  lastActive    DateTime?
+  categories    String[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  snapshots     WalletSnapshot[]
+  trades        Trade[]
+  watchlists    Watchlist[]
+  signals       ConsensusSignal[] @relation("SignalWallets")
+}
+
+model WalletSnapshot {
+  id        String   @id @default(cuid())
+  walletId  String
+  winRate   Float
+  pnl       Float
+  botScore  Float
+  totalBets Int
+  timestamp DateTime @default(now())
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+model Market {
+  id          String   @id @default(cuid())
+  polyId      String   @unique
+  title       String
+  category    String
+  status      String   @default("active")
+  yesPrice    Float?
+  noPrice     Float?
+  volume      Float    @default(0)
+  resolvedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  trades      Trade[]
+  signals     ConsensusSignal[]
+}
+
+model Trade {
+  id         String   @id @default(cuid())
+  walletId   String
+  marketId   String
+  outcome    String
+  amount     Float
+  price      Float
+  result     String?
+  pnl        Float?
+  timestamp  DateTime
+  txHash     String?
+  createdAt  DateTime @default(now())
+  wallet     Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  market     Market   @relation(fields: [marketId], references: [id])
+}
+
+model ConsensusSignal {
+  id             String   @id @default(cuid())
+  marketId       String
+  outcome        String
+  strength       Float
+  tier           String
+  walletCount    Int
+  totalWallets   Int
+  totalVolume    Float
+  currentOdds    Float
+  category       String
+  formedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  market         Market   @relation(fields: [marketId], references: [id])
+  wallets        Wallet[] @relation("SignalWallets")
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  walletId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  @@unique([userId, walletId])
+}
