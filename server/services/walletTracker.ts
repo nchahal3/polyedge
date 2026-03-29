@@ -202,7 +202,7 @@ export async function getTopWallets(
   const results: WalletStats[] = [];
   const batchSize = 10;
 
-  for (let i = 0; i < Math.min(accounts.length, 20); i += batchSize) {
+  for (let i = 0; i < Math.min(accounts.length, 50); i += batchSize) {
     const batch = accounts.slice(i, i + batchSize);
     const batchResults = await Promise.allSettled(
       batch.map((acc) => processWallet(acc.id))
@@ -213,14 +213,18 @@ export async function getTopWallets(
     if (i + batchSize < accounts.length) await delay(200);
   }
 
-  // Filter
-  let filtered = results.filter(
-    (w) =>
-      w.botScore <= maxBotScore &&
-      w.winRate * 100 >= minWinRate &&
-      w.resolvedBets >= 3 &&
-      (category === "all" || category === "All" || w.primaryCategory === category || w.categories.includes(category))
-  );
+  // Filter — require meaningful history, realistic win rates, and sane PnL
+  let filtered = results.filter((w) => {
+    if (w.botScore > maxBotScore) return false;
+    if (w.winRate * 100 < minWinRate) return false;
+    if (w.resolvedBets < 5) return false;
+    // Cap 100% win rate — almost always a data artifact (positions API omits losing positions)
+    if (w.winRate >= 0.99 && w.resolvedBets < 30) return false;
+    // Exclude unrealistic PnL: more than $10k loss per resolved bet = market maker / bad data
+    if (w.pnl < 0 && Math.abs(w.pnl) > w.resolvedBets * 10000) return false;
+    if (category !== "all" && category !== "All" && w.primaryCategory !== category && !w.categories.includes(category)) return false;
+    return true;
+  });
 
   // Sort
   filtered.sort((a, b) => {

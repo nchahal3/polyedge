@@ -42,32 +42,40 @@ export interface SubgraphTransaction {
   condition: { id: string } | null;
 }
 
-// Fallback: discover active wallets from the Data API activity feed
+// Fallback: discover active wallets from the global /trades endpoint (no user filter needed)
 async function getTopAccountsFromActivity(limit: number): Promise<SubgraphAccount[]> {
   const res = await fetch(
-    `${DATA_URL}/activity?limit=500`,
+    `${DATA_URL}/trades?limit=1000`,
     { headers: { Accept: "application/json" }, next: { revalidate: 0 } }
   );
-  if (!res.ok) throw new Error(`Activity fallback HTTP error: ${res.status}`);
+  if (!res.ok) throw new Error(`Trades fallback HTTP error: ${res.status}`);
 
-  const activities = await res.json() as Array<{ proxyWallet?: string; timestamp?: string }>;
-  if (!Array.isArray(activities)) throw new Error("Unexpected activity response shape");
+  const trades = await res.json() as Array<{ proxyWallet?: string; timestamp?: number }>;
+  if (!Array.isArray(trades)) throw new Error("Unexpected trades response shape");
 
-  // Deduplicate by wallet address, keep most-recent timestamp
-  const walletMap = new Map<string, string>();
-  for (const a of activities) {
-    const addr = a.proxyWallet?.toLowerCase();
+  // Deduplicate by wallet address, count trades per wallet
+  const walletMap = new Map<string, { count: number; lastTs: string }>();
+  for (const t of trades) {
+    const addr = t.proxyWallet?.toLowerCase();
     if (!addr) continue;
-    if (!walletMap.has(addr)) walletMap.set(addr, a.timestamp ?? "0");
+    const existing = walletMap.get(addr);
+    const ts = t.timestamp ? new Date(t.timestamp * 1000).toISOString() : new Date().toISOString();
+    if (existing) {
+      existing.count++;
+    } else {
+      walletMap.set(addr, { count: 1, lastTs: ts });
+    }
   }
 
+  // Sort by trade count (more trades = more active), take top N
   return Array.from(walletMap.entries())
+    .sort((a, b) => b[1].count - a[1].count)
     .slice(0, limit)
-    .map(([id, lastSeenTimestamp]) => ({
+    .map(([id, { count, lastTs }]) => ({
       id,
-      numTrades: "10",
+      numTrades: String(count),
       collateralVolume: "0",
-      lastSeenTimestamp,
+      lastSeenTimestamp: lastTs,
     }));
 }
 

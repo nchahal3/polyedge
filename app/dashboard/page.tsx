@@ -21,7 +21,7 @@ function adaptWallet(w: Record<string, unknown>): MockWallet {
     alias: (w.alias as string | null) ?? null,
     verified: false,
     botScore: Number(w.botScore ?? 50),
-    winRate: Number(w.winRate ?? 0) * 100,
+    winRate: Math.round(Number(w.winRate ?? 0) * 1000) / 10,
     totalBets: Number(w.totalBets ?? 0),
     resolvedBets: Number(w.resolvedBets ?? 0),
     pnl: Number(w.pnl ?? 0),

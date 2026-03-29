@@ -23,6 +23,7 @@ export function formatVolume(volume: number): string {
 
 export function timeAgo(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return "Unknown";
   const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
