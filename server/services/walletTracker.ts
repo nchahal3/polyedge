@@ -67,32 +67,41 @@ export async function processWallet(address: string): Promise<WalletStats | null
     const txnData = transactions.status === "fulfilled" ? transactions.value : [];
     const profileData = profile.status === "fulfilled" ? profile.value : null;
 
+    // The Data API doesn't include a `closed` field — use endDate + redeemable
+    const now = new Date();
+    const isResolved = (p: { redeemable: boolean; endDate: string }) =>
+      p.redeemable || new Date(p.endDate) <= now;
+    const isOpen = (p: { redeemable: boolean; endDate: string }) =>
+      !p.redeemable && new Date(p.endDate) > now;
+
     // Win rate from positions
-    const resolvedPositions = positionData.filter((p) => p.closed);
+    const resolvedPositions = positionData.filter(isResolved);
     const wonPositions = resolvedPositions.filter((p) => p.redeemable);
     const resolvedBets = resolvedPositions.length;
-    const winRate = resolvedBets >= 5 ? wonPositions.length / resolvedBets : 0;
+    const winRate = resolvedBets >= 3 ? wonPositions.length / resolvedBets : 0;
 
     // PnL from all positions
     const pnl = positionData.reduce((sum, p) => sum + (p.cashPnl ?? 0), 0);
 
     // Active (open) positions
-    const openPositions = positionData.filter((p) => !p.closed);
+    const openPositions = positionData.filter(isOpen);
     const activeTrades: ActiveTrade[] = openPositions.slice(0, 10).map((p) => ({
       marketId: p.conditionId,
       marketTitle: p.title,
-      polymarketUrl: `https://polymarket.com/event/${p.slug}`,
+      polymarketUrl: `https://polymarket.com/event/${p.eventSlug || p.slug}`,
       outcome: p.outcome,
       odds: p.curPrice,
       size: p.size,
       pnl: p.cashPnl,
     }));
 
-    // Category breakdown from activity
+    // Category breakdown from activity (fall back to positions if activity is empty)
     const categoryMap = new Map<string, number>();
-    for (const a of activityData) {
-      // Use title keywords to guess category
-      const cat = guessCategory(a.title ?? "");
+    const categorySource = activityData.length > 0
+      ? activityData.map((a) => a.title ?? "")
+      : positionData.map((p) => p.title ?? "");
+    for (const title of categorySource) {
+      const cat = guessCategory(title);
       categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + 1);
     }
     const totalCatBets = Array.from(categoryMap.values()).reduce((a, b) => a + b, 0) || 1;
@@ -117,22 +126,22 @@ export async function processWallet(address: string): Promise<WalletStats | null
       date: a.timestamp,
     }));
 
-    // Last active
-    const lastActive =
-      activityData[0]?.timestamp ??
-      txnData[0]?.timestamp
-        ? new Date(parseInt(txnData[0]?.timestamp ?? "0") * 1000).toISOString()
-        : new Date().toISOString();
+    // Last active — activity timestamps are ISO strings; subgraph timestamps are Unix seconds
+    const lastActive = activityData[0]?.timestamp
+      ?? (txnData[0]?.timestamp
+        ? new Date(parseInt(txnData[0].timestamp) * 1000).toISOString()
+        : new Date().toISOString());
 
-    // Volume from subgraph account (collateralVolume is in wei-like units / 1e6 for USDC)
-    const totalVolume = pnl !== 0 ? Math.abs(pnl) * 10 : activityData.reduce((s, a) => s + a.amount, 0);
+    // Volume = sum of initial investment across all positions (what was actually wagered)
+    const totalVolume = positionData.reduce((s, p) => s + Math.abs(p.initialValue || 0), 0)
+      || activityData.reduce((s, a) => s + a.amount, 0);
 
     const stats: WalletStats = {
       id: address.toLowerCase(),
       address: address.toLowerCase(),
       alias: profileData?.name ?? profileData?.username ?? null,
       winRate,
-      totalBets: activityData.length,
+      totalBets: activityData.length || resolvedBets + openPositions.length,
       resolvedBets,
       pnl,
       totalVolume,
@@ -159,13 +168,13 @@ export async function processWallet(address: string): Promise<WalletStats | null
 
 function guessCategory(title: string): string {
   const t = title.toLowerCase();
-  if (/bitcoin|btc|eth|crypto|solana|xrp|defi|nft/.test(t)) return "Crypto";
-  if (/nba|nfl|nhl|mlb|soccer|football|basketball|tennis|sports|match|game/.test(t)) return "Sports";
-  if (/trump|biden|election|president|congress|senate|democrat|republican|politics/.test(t)) return "Politics";
-  if (/fed|rate|gdp|inflation|stock|market|economy|recession/.test(t)) return "Finance";
-  if (/war|iran|russia|china|ukraine|geopolit/.test(t)) return "Geopolitics";
-  if (/oscar|grammy|celebrity|award|movie|music/.test(t)) return "Culture";
-  if (/weather|hurricane|earthquake|temperature/.test(t)) return "Weather";
+  if (/bitcoin|btc|eth|ethereum|crypto|solana|xrp|defi|nft|polygon|matic|base|arbitrum|token|blockchain/.test(t)) return "Crypto";
+  if (/nba|nfl|nhl|mlb|soccer|football|basketball|tennis|golf|mma|ufc|boxing|rugby|cricket|f1|formula|serie a|premier league|champions league|la liga|bundesliga|ligue 1|world cup|super bowl|playoff|tournament|championship|goal scorer|top scorer|win the match|beat the|vs\.|score/.test(t)) return "Sports";
+  if (/trump|biden|harris|election|president|congress|senate|democrat|republican|politics|primary|governor|minister|parliament|vote|referendum|political|candidate|ballot|poll/.test(t)) return "Politics";
+  if (/fed|rate|gdp|inflation|stock|market|economy|recession|interest rate|treasury|dow|s&p|nasdaq|bond|yield|cpi|pce/.test(t)) return "Finance";
+  if (/war|iran|russia|china|ukraine|geopolit|nato|israel|gaza|middle east|north korea|taiwan|sanctions|missile|military/.test(t)) return "Geopolitics";
+  if (/oscar|grammy|emmy|celebrity|award|movie|music|film|artist|singer|band|album|eurovision|reality|talent show|netflix/.test(t)) return "Culture";
+  if (/weather|hurricane|earthquake|temperature|climate|flood|tornado|storm|el nino/.test(t)) return "Weather";
   return "Other";
 }
 
@@ -181,13 +190,19 @@ export async function getTopWallets(
   if (cached) return cached;
 
   // Get top accounts from subgraph as seed
-  const accounts = await subgraphClient.getTopAccounts(100);
+  let accounts: import("./subgraphClient").SubgraphAccount[];
+  try {
+    accounts = await subgraphClient.getTopAccounts(100);
+  } catch (err) {
+    console.error("getTopWallets: subgraph unavailable, returning empty list:", err);
+    return [];
+  }
 
   // Process in batches of 10 with delay
   const results: WalletStats[] = [];
   const batchSize = 10;
 
-  for (let i = 0; i < Math.min(accounts.length, 50); i += batchSize) {
+  for (let i = 0; i < Math.min(accounts.length, 20); i += batchSize) {
     const batch = accounts.slice(i, i + batchSize);
     const batchResults = await Promise.allSettled(
       batch.map((acc) => processWallet(acc.id))
@@ -203,7 +218,7 @@ export async function getTopWallets(
     (w) =>
       w.botScore <= maxBotScore &&
       w.winRate * 100 >= minWinRate &&
-      w.resolvedBets >= 5 &&
+      w.resolvedBets >= 3 &&
       (category === "all" || category === "All" || w.primaryCategory === category || w.categories.includes(category))
   );
 

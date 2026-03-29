@@ -123,7 +123,6 @@ export async function getWalletPositions(address: string): Promise<PolyPosition[
 
   const params = new URLSearchParams({
     user: address.toLowerCase(),
-    sizeThreshold: "0.1",
     sortBy: "CURRENT",
     sortDirection: "DESC",
   });
@@ -141,7 +140,6 @@ export async function getWalletActivity(address: string, limit = 500): Promise<P
 
   const params = new URLSearchParams({
     user: address.toLowerCase(),
-    type: "TRADE",
     limit: String(limit),
   });
 
